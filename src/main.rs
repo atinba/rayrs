@@ -12,6 +12,7 @@ fn main() {
     let render_config = RenderConfig {
         resolution: (IMAGE_WIDTH, IMAGE_HEIGHT),
         aspect_ratio: ASPECT_RATIO,
+        samples_per_pixel: 10,
     };
 
     let mut world = Scene::new();

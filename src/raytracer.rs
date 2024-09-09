@@ -3,7 +3,7 @@ use std::io;
 use crate::color::{self, Color};
 use crate::ray::Ray;
 use crate::scene::{HitRecord, Hittable, Scene};
-use crate::utils;
+use crate::utils::rand_f64;
 use crate::vec3::{Point3, Vec3};
 
 pub struct Camera {
@@ -11,14 +11,18 @@ pub struct Camera {
     pixel00_loc: Point3,
     pixel_du: Vec3,
     pixel_dv: Vec3,
+    pixel_samples_scale: f64,
 }
 
 impl Camera {
     pub fn new(config: &RenderConfig) -> Self {
         let (image_width, image_height) = config.resolution;
+        let samples_per_pixel = config.samples_per_pixel;
 
         let focal_length = 1.0;
         let viewport_height = 2.0;
+
+        let pixel_samples_scale = 1.0 / samples_per_pixel as f64;
         let viewport_width = viewport_height * (image_width as f64 / image_height as f64);
         let center = Point3::new(0.0, 0.0, 0.0);
 
@@ -37,20 +41,31 @@ impl Camera {
             pixel00_loc,
             pixel_du,
             pixel_dv,
+            pixel_samples_scale,
         }
     }
 
     fn get_ray(&self, i: u32, j: u32) -> Ray {
-        let pixel_center =
-            self.pixel00_loc + (i as f64 * self.pixel_du) + (j as f64 * self.pixel_dv);
-        let ray_direction = pixel_center - self.center;
+        let [x, y, _] = Camera::sample_square().xyz();
+
+        let x = x + i as f64;
+        let y = y + j as f64;
+        let pixel_sample = self.pixel00_loc + (x * self.pixel_du) + (y * self.pixel_dv);
+        let ray_direction = pixel_sample - self.center;
+
         Ray::new(self.center, ray_direction)
+    }
+
+    // Anti-Aliasing
+    fn sample_square() -> Vec3 {
+        Vec3::new(rand_f64() - 0.5, rand_f64() - 0.5, 0.0)
     }
 }
 
 pub struct RenderConfig {
     pub resolution: (u32, u32),
     pub aspect_ratio: f64,
+    pub samples_per_pixel: u32
 }
 
 pub struct Raytracer {
@@ -79,8 +94,15 @@ impl Raytracer {
             eprint!("\rScanlines remaining: {} ", image_height - j);
 
             for i in 0..image_width {
-                let pixel_color = self.ray_color(&self.camera.get_ray(i, j));
-                color::write_color(&mut io::stdout(), pixel_color);
+                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                for sample in 0..self.config.samples_per_pixel {
+                    pixel_color += self.ray_color(&self.camera.get_ray(i, j));
+                }
+
+                color::write_color(
+                    &mut io::stdout(),
+                    self.camera.pixel_samples_scale * pixel_color,
+                );
             }
         }
 
