@@ -1,5 +1,5 @@
-use crate::hittable::{HitRecord, Hittable};
 use crate::ray::Ray;
+use crate::scene::{HitRecord, Hittable};
 use crate::vec3::{Point3, Vec3};
 
 pub struct Sphere {
@@ -30,9 +30,12 @@ impl Hittable for Sphere {
 
         let d_sqrt = discriminant.sqrt();
         let mut root = (h - d_sqrt) / a;
-        if root <= ray_tmin || ray_tmax <= root {
+
+        // TODO: maybe buggy?! tmin is included in the range
+        let range = ray_tmin..=ray_tmax;
+        if !range.contains(&root) {
             root = (h + d_sqrt) / a;
-            if root <= ray_tmin || ray_tmax <= root {
+            if !range.contains(&root) {
                 return false;
             }
         }
