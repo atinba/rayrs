@@ -1,3 +1,5 @@
+use crate::utils::{rand_f64, rand_range_f64};
+
 use std::fmt::{Display, Formatter, Result};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub};
 
@@ -46,11 +48,53 @@ impl Vec3 {
         (*self * *v).sum()
     }
 
-    pub fn cross(&self, v: Vec3) -> Vec3 {
+    pub fn cross(&self, v: &Vec3) -> Vec3 {
         let [x, y, z] = self.xyz();
         let [x1, y1, z1] = v.xyz();
 
         Vec3::new(y * z1 - y1 * z, z * x1 - z1 * x, x * y1 - x1 * y)
+    }
+
+    pub fn rand() -> Vec3 {
+        Vec3::new(rand_f64(), rand_f64(), rand_f64())
+    }
+
+    pub fn rand_range(min: f64, max: f64) -> Vec3 {
+        Vec3::new(
+            rand_range_f64(min, max),
+            rand_range_f64(min, max),
+            rand_range_f64(min, max),
+        )
+    }
+
+    pub fn rand_unit_vec() -> Vec3 {
+        loop {
+            let p = Vec3::rand_range(-1.0, 1.0);
+            let len_sq = p.len_sq();
+            if 1e-160 < len_sq && len_sq <= 1.0 {
+                return p / len_sq.sqrt();
+            }
+        }
+    }
+
+    pub fn rand_vec_on_hemisphere(normal: &Vec3) -> Vec3 {
+        let p = Vec3::rand_unit_vec();
+        if p.dot(normal) > 0.0 {
+            p
+        } else {
+            -p
+        }
+    }
+
+    pub fn is_near_zero(&self) -> bool {
+        const EPS: f64 = 1.0E-8;
+        let [x, y, z] = self.xyz();
+
+        x.abs() < EPS && y.abs() < EPS && z.abs() < EPS
+    }
+
+    pub fn reflect(&self, normal: &Vec3) -> Vec3 {
+        *self - 2.0 * self.dot(normal) * (*normal)
     }
 }
 
@@ -172,5 +216,18 @@ impl MulAssign<f64> for Vec3 {
 impl DivAssign<f64> for Vec3 {
     fn div_assign(&mut self, t: f64) {
         *self = *self / t;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic() {
+        let v1 = Vec3::new(1.0, 2.0, 3.0);
+        let v2 = Vec3::new(2.0, 3.0, 4.0);
+
+        assert_eq!(v1.dot(&v2), 20.0);
     }
 }

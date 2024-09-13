@@ -1,4 +1,4 @@
-pub mod color;
+pub mod material;
 pub mod ray;
 pub mod raytracer;
 pub mod scene;

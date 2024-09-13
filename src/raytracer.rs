@@ -1,9 +1,10 @@
+use rayon::prelude::*;
 use std::io;
 
-use crate::color::{self, Color};
+//use crate::color::{self, Color};
 use crate::ray::Ray;
-use crate::scene::{HitRecord, Hittable, Scene};
-use crate::utils::rand_f64;
+use crate::scene::{Hittable, Scene};
+use crate::utils::{self, rand_f64, Color};
 use crate::vec3::{Point3, Vec3};
 
 pub struct Camera {
@@ -65,7 +66,8 @@ impl Camera {
 pub struct RenderConfig {
     pub resolution: (u32, u32),
     pub aspect_ratio: f64,
-    pub samples_per_pixel: u32
+    pub samples_per_pixel: u32,
+    pub max_depth: u32,
 }
 
 pub struct Raytracer {
@@ -85,8 +87,39 @@ impl Raytracer {
         }
     }
 
+    pub fn render_p(&self) {
+        let (image_width, image_height) = self.config.resolution;
+        let max_depth = self.config.max_depth;
+
+        println!("P3\n{image_width} {image_height}\n255\n");
+
+        for j in 0..image_height {
+            eprint!("\rScanlines remaining: {} ", image_height - j);
+
+            let pixel_colors: Vec<_> = (0..image_width)
+                .into_par_iter()
+                .map(|i| {
+                    let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                    for _ in 0..self.config.samples_per_pixel {
+                        pixel_color += self.ray_color(&self.camera.get_ray(i, j), max_depth);
+                    }
+
+                    pixel_color
+                })
+                .collect();
+
+            for pixel_color in pixel_colors {
+                utils::write_color(
+                    &mut io::stdout(),
+                    self.camera.pixel_samples_scale * pixel_color,
+                );
+            }
+        }
+    }
+
     pub fn render(&self) {
         let (image_width, image_height) = self.config.resolution;
+        let max_depth = self.config.max_depth;
 
         println!("P3\n{image_width} {image_height}\n255\n");
 
@@ -95,24 +128,29 @@ impl Raytracer {
 
             for i in 0..image_width {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
-                for sample in 0..self.config.samples_per_pixel {
-                    pixel_color += self.ray_color(&self.camera.get_ray(i, j));
+                for _ in 0..self.config.samples_per_pixel {
+                    pixel_color += self.ray_color(&self.camera.get_ray(i, j), max_depth);
                 }
 
-                color::write_color(
+                utils::write_color(
                     &mut io::stdout(),
                     self.camera.pixel_samples_scale * pixel_color,
                 );
             }
         }
-
-        eprint!("\rDone.                 \n");
     }
-    fn ray_color(&self, r: &Ray) -> Color {
-        let mut rec = HitRecord::new();
-        if self.scene.hit(r, 0.0, f64::INFINITY, &mut rec) {
-            // Map [-1,1] to [0,1]
-            return (rec.normal + Color::new(1.0, 1.0, 1.0)) / 2.0;
+
+    fn ray_color(&self, r: &Ray, depth: u32) -> Color {
+        if depth == 0 {
+            return Color::new(0.0, 0.0, 0.0);
+        }
+
+        if let Some(rec) = self.scene.hit(r, 0.001, f64::INFINITY) {
+            if let Some(scatter) = rec.mat.scatter(r, &rec) {
+                return scatter.attenuation * self.ray_color(&scatter.scattered, depth - 1);
+            }
+            //let ray = Ray::new(rec.p, rec.normal + Vec3::rand_unit_vec());
+            return Color::new(0.0, 0.0, 0.0);
         }
 
         let unit_direction = r.direction().unit();
