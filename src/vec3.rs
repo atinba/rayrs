@@ -103,6 +103,16 @@ impl Vec3 {
         let r_out_parallel = -f64::sqrt(f64::abs(1.0 - r_out_perp.len_sq())) * *normal;
         r_out_perp + r_out_parallel
     }
+
+    pub fn rand_in_unit_disk() -> Vec3 {
+        loop {
+            let p = Vec3::new(rand_range_f64(-1.0, 1.0), rand_range_f64(-1.0, 1.0), 0.0);
+            if p.len_sq() >= 1.0 {
+                continue;
+            }
+            return p;
+        }
+    }
 }
 
 pub type Point3 = Vec3;
@@ -234,7 +244,9 @@ mod tests {
     fn basic() {
         let v1 = Vec3::new(1.0, 2.0, 3.0);
         let v2 = Vec3::new(2.0, 3.0, 4.0);
+        let cross = Vec3::new(-1.0, 2.0, -1.0);
 
         assert_eq!(v1.dot(&v2), 20.0);
+        assert_eq!(v1.cross(&v2).xyz(), cross.xyz());
     }
 }

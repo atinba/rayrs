@@ -24,9 +24,8 @@ impl Scene {
         self.objects.push(object);
     }
 
-    pub fn add_sphere(&mut self, center: (f64, f64, f64), radius: f64, mat: Arc<dyn Material>) {
-        let (x, y, z) = center;
-        self.add(Box::new(Sphere::new(Point3::new(x, y, z), radius, mat)));
+    pub fn add_sphere(&mut self, center: Point3, radius: f64, mat: Arc<dyn Material>) {
+        self.add(Box::new(Sphere::new(center, radius, mat)));
     }
 }
 
